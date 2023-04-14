@@ -153,31 +153,26 @@ def parse_record_set(record_set, zone_id):
                 "value": record_set['AliasTarget']['DNSName'][:-1],
                 "id": record_set['Name'][:-1] + '+ALIAS'
             }
-        else:
-            # this is a real A record
-            # loop and add each value (IP address) to a comma separated string
-            # don't forget to trim that trailing comma!
-            # TODO can this be replaced with a string join?
-            value = ''
-            for a_value in record_set['ResourceRecords']:
-                value = value + a_value['Value'] + ','
+        # this is a real A record
+        # loop and add each value (IP address) to a comma separated string
+        # don't forget to trim that trailing comma!
+        # TODO can this be replaced with a string join?
+        value = ''
+        for a_value in record_set['ResourceRecords']:
+            value = value + a_value['Value'] + ','
 
-            return {
-                "name": record_set['Name'][:-1],
-                "type": 'A',
-                "zoneid": zone_id,
-                "value": value[:-1],
-                "id": record_set['Name'][:-1] + '+A'
-            }
+        return {
+            "name": record_set['Name'][:-1],
+            "type": 'A',
+            "zoneid": zone_id,
+            "value": value[:-1],
+            "id": record_set['Name'][:-1] + '+A'
+        }
 
 
 def parse_zone(zone):
     # TODO simplify this
-    if 'Comment' in zone['Config']:
-        comment = zone['Config']['Comment']
-    else:
-        comment = ''
-
+    comment = zone['Config']['Comment'] if 'Comment' in zone['Config'] else ''
     return {
         "zoneid": zone['Id'],
         "name": zone['Name'],
@@ -198,7 +193,7 @@ def load_dns_details(session, dns_details, current_aws_id, update_tag):
         load_zone(session, parsed_zone, current_aws_id, update_tag)
 
         for record_set in zone_record_sets:
-            if record_set['Type'] == 'A' or record_set['Type'] == 'CNAME':
+            if record_set['Type'] in ['A', 'CNAME']:
                 record = parse_record_set(record_set, zone['Id'])
 
                 if record['type'] == 'A':

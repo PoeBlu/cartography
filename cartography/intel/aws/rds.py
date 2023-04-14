@@ -114,7 +114,10 @@ def _attach_ec2_subnet_groups(neo4j_session, instance, region, current_aws_accou
     """
     Attach RDS instance to its EC2 subnets
     """
-    attach_rds_to_subnet_group = """
+    if 'DBSubnetGroup' in instance:
+        db_sng = instance['DBSubnetGroup']
+        arn = _get_db_subnet_group_arn(region, current_aws_account_id, db_sng['DBSubnetGroupName'])
+        attach_rds_to_subnet_group = """
     MERGE(sng:DBSubnetGroup{id:{sng_arn}})
     ON CREATE SET sng.firstseen = timestamp()
     SET sng.name = {DBSubnetGroupName},
@@ -128,9 +131,6 @@ def _attach_ec2_subnet_groups(neo4j_session, instance, region, current_aws_accou
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = {aws_update_tag}
     """
-    if 'DBSubnetGroup' in instance:
-        db_sng = instance['DBSubnetGroup']
-        arn = _get_db_subnet_group_arn(region, current_aws_account_id, db_sng['DBSubnetGroupName'])
         neo4j_session.run(
             attach_rds_to_subnet_group,
             sng_arn=arn,

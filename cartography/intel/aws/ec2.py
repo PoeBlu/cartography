@@ -148,11 +148,7 @@ def load_ec2_instances(session, data, region, current_aws_account_id, aws_update
 
             # NOTE this is a hack because we're using a version of Neo4j that doesn't support temporal data types
             launch_time = instance.get("LaunchTime", "")
-            if launch_time:
-                launch_time_unix = time.mktime(launch_time.timetuple())
-            else:
-                launch_time_unix = ""
-
+            launch_time_unix = time.mktime(launch_time.timetuple()) if launch_time else ""
             session.run(
                 ingest_instance,
                 InstanceId=instanceid,
@@ -276,7 +272,9 @@ def load_ec2_security_groupinfo(session, data, region, current_aws_account_id, a
 
 
 def load_ec2_security_group_rule(session, group, rule_type, aws_update_tag):
-    ingest_rule = """
+    group_id = group["GroupId"]
+    if group.get(rule_type):
+        ingest_rule = """
     MERGE (rule:#RULE_TYPE#{ruleid: {RuleId}})
     ON CREATE SET rule :IpRule, rule.firstseen = timestamp(), rule.fromport = {FromPort}, rule.toport = {ToPort},
     rule.protocol = {Protocol}
@@ -288,7 +286,7 @@ def load_ec2_security_group_rule(session, group, rule_type, aws_update_tag):
     SET r.lastupdated = {aws_update_tag};
     """
 
-    ingest_rule_group_pair = """
+        ingest_rule_group_pair = """
     MERGE (group:EC2SecurityGroup{id: {GroupId}})
     ON CREATE SET group.firstseen = timestamp(), group.groupid = {GroupId}
     SET group.lastupdated = {aws_update_tag}
@@ -299,7 +297,7 @@ def load_ec2_security_group_rule(session, group, rule_type, aws_update_tag):
     SET r.lastupdated = {aws_update_tag}
     """
 
-    ingest_range = """
+        ingest_range = """
     MERGE (range:IpRange{id: {RangeId}})
     ON CREATE SET range.firstseen = timestamp(), range.range = {RangeId}
     SET range.lastupdated = {aws_update_tag}
@@ -310,10 +308,8 @@ def load_ec2_security_group_rule(session, group, rule_type, aws_update_tag):
     SET r.lastupdated = {aws_update_tag}
     """
 
-    group_id = group["GroupId"]
-    rule_type_map = {"IpPermissions": "IpPermissionInbound", "IpPermissionEgress": "IpPermissionEgress"}
+        rule_type_map = {"IpPermissions": "IpPermissionInbound", "IpPermissionEgress": "IpPermissionEgress"}
 
-    if group.get(rule_type):
         for rule in group[rule_type]:
             protocol = rule.get("IpProtocol", "all")
             from_port = rule.get("FromPort", "")
@@ -799,11 +795,11 @@ def _get_cidr_association_statement(block_type):
     BLOCK_TYPE = "AWSCidrBlock"
 
     if block_type == "ipv6":
-        BLOCK_CIDR = "Ipv6" + BLOCK_CIDR
-        STATE_NAME = "Ipv6" + STATE_NAME
-        BLOCK_TYPE = BLOCK_TYPE + ":AWSIpv6CidrBlock"
+        BLOCK_CIDR = f"Ipv6{BLOCK_CIDR}"
+        STATE_NAME = f"Ipv6{STATE_NAME}"
+        BLOCK_TYPE += ":AWSIpv6CidrBlock"
     elif block_type == "ipv4":
-        BLOCK_TYPE = BLOCK_TYPE + ":AWSIpv4CidrBlock"
+        BLOCK_TYPE += ":AWSIpv4CidrBlock"
     else:
         raise ValueError("Unsupported block type specified - {0}".format(block_type))
 

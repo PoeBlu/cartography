@@ -8,10 +8,9 @@ logger = logging.getLogger(__name__)
 def get_index_statements():
     statements = []
     with load_resource_binary('cartography.data', 'indexes.cypher') as f:
-        for line in f.readlines():
-            statements.append(
-                line.decode('UTF-8').rstrip('\r\n')
-            )
+        statements.extend(
+            line.decode('UTF-8').rstrip('\r\n') for line in f.readlines()
+        )
     return statements
 
 

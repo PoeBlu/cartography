@@ -124,8 +124,8 @@ def run_with_config(sync, config):
                 e
             )
         return
-    default_update_tag = int(time.time())
     if not config.update_tag:
+        default_update_tag = int(time.time())
         config.update_tag = default_update_tag
     return sync.run(neo4j_driver, config)
 
